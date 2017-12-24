@@ -23,11 +23,14 @@ import com.jfoenix.skins.JFXTextFieldSkin;
 import com.jfoenix.validation.base.ValidatorBase;
 import com.sun.javafx.css.converters.BooleanConverter;
 import com.sun.javafx.css.converters.PaintConverter;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.css.*;
+import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.Skin;
@@ -48,6 +51,75 @@ import java.util.List;
  */
 public class JFXPasswordField extends PasswordField implements IFXTextInputControl {
 
+
+    /**************************************************************************
+     *
+     * Properties
+     *
+     **************************************************************************/
+
+    // --- left
+    private ObjectProperty<Node> left = new SimpleObjectProperty<>(this, "left"); //$NON-NLS-1$
+
+    /**
+     * Property representing the {@link Node} that is placed on the left of
+     * the password field.
+     * @return An ObjectProperty.
+     */
+    public final ObjectProperty<Node> leftProperty() {
+        return left;
+    }
+
+    /**
+     *
+     * @return The {@link Node} that is placed on the left of
+     * the password field.
+     */
+    public final Node getLeft() {
+        return left.get();
+    }
+
+    /**
+     * Sets the {@link Node} that is placed on the left of
+     * the password field.
+     * @param value
+     */
+    public final void setLeft(Node value) {
+        left.set(value);
+    }
+
+
+    // --- right
+    private ObjectProperty<Node> right = new SimpleObjectProperty<>(this, "right"); //$NON-NLS-1$
+
+    /**
+     * Property representing the {@link Node} that is placed on the right of
+     * the password field.
+     * @return An ObjectProperty.
+     */
+    public final ObjectProperty<Node> rightProperty() {
+        return right;
+    }
+
+    /**
+     *
+     * @return The {@link Node} that is placed on the right of
+     * the password field.
+     */
+    public final Node getRight() {
+        return right.get();
+    }
+
+    /**
+     * Sets the {@link Node} that is placed on the right of
+     * the password field.
+     * @param value
+     */
+    public final void setRight(Node value) {
+        right.set(value);
+    }
+
+
     /**
      * {@inheritDoc}
      */
@@ -58,9 +130,16 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
     /**
      * {@inheritDoc}
      */
-    @Override
     protected Skin<?> createDefaultSkin() {
-        return new JFXTextFieldSkin<>(this);
+        return new JFXTextFieldSkin(this) {
+            @Override public ObjectProperty<Node> leftProperty() {
+                return JFXPasswordField.this.leftProperty();
+            }
+
+            @Override public ObjectProperty<Node> rightProperty() {
+                return JFXPasswordField.this.rightProperty();
+            }
+        };
     }
 
     private void initialize() {
@@ -162,9 +241,9 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
      * set true to show a float the prompt text when focusing the field
      */
     private StyleableBooleanProperty labelFloat = new SimpleStyleableBooleanProperty(StyleableProperties.LABEL_FLOAT,
-        JFXPasswordField.this,
-        "lableFloat",
-        false);
+            JFXPasswordField.this,
+            "lableFloat",
+            false);
 
     @Override
     public final StyleableBooleanProperty labelFloatProperty() {
@@ -185,11 +264,11 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
      * default color used when the field is unfocused
      */
     private StyleableObjectProperty<Paint> unFocusColor = new SimpleStyleableObjectProperty<>(StyleableProperties.UNFOCUS_COLOR,
-        JFXPasswordField.this,
-        "unFocusColor",
-        Color.rgb(77,
-            77,
-            77));
+            JFXPasswordField.this,
+            "unFocusColor",
+            Color.rgb(77,
+                    77,
+                    77));
 
     @Override
     public Paint getUnFocusColor() {
@@ -210,9 +289,9 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
      * default color used when the field is focused
      */
     private StyleableObjectProperty<Paint> focusColor = new SimpleStyleableObjectProperty<>(StyleableProperties.FOCUS_COLOR,
-        JFXPasswordField.this,
-        "focusColor",
-        Color.valueOf("#4059A9"));
+            JFXPasswordField.this,
+            "focusColor",
+            Color.valueOf("#4059A9"));
 
     @Override
     public Paint getFocusColor() {
@@ -233,9 +312,9 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
      * disable animation on validation
      */
     private StyleableBooleanProperty disableAnimation = new SimpleStyleableBooleanProperty(StyleableProperties.DISABLE_ANIMATION,
-        JFXPasswordField.this,
-        "disableAnimation",
-        false);
+            JFXPasswordField.this,
+            "disableAnimation",
+            false);
 
     @Override
     public final StyleableBooleanProperty disableAnimationProperty() {
@@ -255,9 +334,9 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
 
     private static class StyleableProperties {
         private static final CssMetaData<JFXPasswordField, Paint> UNFOCUS_COLOR = new CssMetaData<JFXPasswordField, Paint>(
-            "-jfx-unfocus-color",
-            PaintConverter.getInstance(),
-            Color.valueOf("#A6A6A6")) {
+                "-jfx-unfocus-color",
+                PaintConverter.getInstance(),
+                Color.valueOf("#A6A6A6")) {
             @Override
             public boolean isSettable(JFXPasswordField control) {
                 return control.unFocusColor == null || !control.unFocusColor.isBound();
@@ -269,9 +348,9 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
             }
         };
         private static final CssMetaData<JFXPasswordField, Paint> FOCUS_COLOR = new CssMetaData<JFXPasswordField, Paint>(
-            "-jfx-focus-color",
-            PaintConverter.getInstance(),
-            Color.valueOf("#3f51b5")) {
+                "-jfx-focus-color",
+                PaintConverter.getInstance(),
+                Color.valueOf("#3f51b5")) {
             @Override
             public boolean isSettable(JFXPasswordField control) {
                 return control.focusColor == null || !control.focusColor.isBound();
@@ -284,9 +363,9 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
         };
 
         private static final CssMetaData<JFXPasswordField, Boolean> LABEL_FLOAT = new CssMetaData<JFXPasswordField, Boolean>(
-            "-jfx-label-float",
-            BooleanConverter.getInstance(),
-            false) {
+                "-jfx-label-float",
+                BooleanConverter.getInstance(),
+                false) {
             @Override
             public boolean isSettable(JFXPasswordField control) {
                 return control.labelFloat == null || !control.labelFloat.isBound();
@@ -299,25 +378,25 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
         };
 
         private static final CssMetaData<JFXPasswordField, Boolean> DISABLE_ANIMATION =
-            new CssMetaData<JFXPasswordField, Boolean>("-fx-disable-animation",
-                BooleanConverter.getInstance(), false) {
-                @Override
-                public boolean isSettable(JFXPasswordField control) {
-                    return control.disableAnimation == null || !control.disableAnimation.isBound();
-                }
+                new CssMetaData<JFXPasswordField, Boolean>("-fx-disable-animation",
+                        BooleanConverter.getInstance(), false) {
+                    @Override
+                    public boolean isSettable(JFXPasswordField control) {
+                        return control.disableAnimation == null || !control.disableAnimation.isBound();
+                    }
 
-                @Override
-                public StyleableBooleanProperty getStyleableProperty(JFXPasswordField control) {
-                    return control.disableAnimationProperty();
-                }
-            };
+                    @Override
+                    public StyleableBooleanProperty getStyleableProperty(JFXPasswordField control) {
+                        return control.disableAnimationProperty();
+                    }
+                };
 
 
         private static final List<CssMetaData<? extends Styleable, ?>> CHILD_STYLEABLES;
 
         static {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(
-                Control.getClassCssMetaData());
+                    Control.getClassCssMetaData());
             Collections.addAll(styleables, UNFOCUS_COLOR, FOCUS_COLOR, LABEL_FLOAT, DISABLE_ANIMATION);
             CHILD_STYLEABLES = Collections.unmodifiableList(styleables);
         }
@@ -330,7 +409,7 @@ public class JFXPasswordField extends PasswordField implements IFXTextInputContr
     public List<CssMetaData<? extends Styleable, ?>> getControlCssMetaData() {
         if (STYLEABLES == null) {
             final List<CssMetaData<? extends Styleable, ?>> styleables = new ArrayList<>(
-                Control.getClassCssMetaData());
+                    Control.getClassCssMetaData());
             styleables.addAll(getClassCssMetaData());
             styleables.addAll(TextField.getClassCssMetaData());
             STYLEABLES = Collections.unmodifiableList(styleables);

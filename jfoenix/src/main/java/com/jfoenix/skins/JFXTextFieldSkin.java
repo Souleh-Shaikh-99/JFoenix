@@ -26,6 +26,7 @@ import com.jfoenix.transitions.JFXKeyFrame;
 import com.jfoenix.transitions.JFXKeyValue;
 import com.jfoenix.validation.base.ValidatorBase;
 import com.sun.javafx.scene.control.skin.TextFieldSkin;
+import com.sun.javafx.scene.text.HitInfo;
 import javafx.animation.*;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -33,6 +34,7 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
+import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -75,66 +77,77 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
 
     private Paint oldPromptTextFill;
     private BooleanBinding usePromptText = Bindings.createBooleanBinding(this::usePromptText,
-        getSkinnable().textProperty(),
-        getSkinnable().promptTextProperty());
+            getSkinnable().textProperty(),
+            getSkinnable().promptTextProperty());
 
     private final Rectangle errorContainerClip = new Rectangle();
     private final Scale errorClipScale = new Scale(1, 0, 0, 0);
     private Timeline errorHideTransition = new Timeline(new KeyFrame(Duration.millis(80),
-        new KeyValue(errorContainer.opacityProperty(), 0, Interpolator.LINEAR)));
+            new KeyValue(errorContainer.opacityProperty(), 0, Interpolator.LINEAR)));
     private Timeline errorShowTransition = new Timeline(new KeyFrame(Duration.millis(80),
-        new KeyValue(errorContainer.opacityProperty(), 1, Interpolator.EASE_OUT)));
+            new KeyValue(errorContainer.opacityProperty(), 1, Interpolator.EASE_OUT)));
     private Timeline scale1 = new Timeline();
     private Timeline scaleLess1 = new Timeline();
 
     private final ObjectProperty<Paint> animatedPromptTextFill = new SimpleObjectProperty<>(super.promptTextFill.get());
 
-    JFXAnimationTimer focusTimer = new JFXAnimationTimer(
-        new JFXKeyFrame(Duration.millis(1),
-            JFXKeyValue.builder()
-                .setTarget(focusedLine.opacityProperty())
-                .setEndValue(1)
-                .setInterpolator(Interpolator.EASE_BOTH)
-                .setAnimateCondition(()->getSkinnable().isFocused()).build()),
+    private static final PseudoClass HAS_NO_SIDE_NODE = PseudoClass.getPseudoClass("no-side-nodes"); //$NON-NLS-1$
+    private static final PseudoClass HAS_LEFT_NODE = PseudoClass.getPseudoClass("left-node-visible"); //$NON-NLS-1$
+    private static final PseudoClass HAS_RIGHT_NODE = PseudoClass.getPseudoClass("right-node-visible"); //$NON-NLS-1$
 
-        new JFXKeyFrame(Duration.millis(160),
-            JFXKeyValue.builder()
-                .setTarget(scale.xProperty())
-                .setEndValue(1)
-                .setInterpolator(Interpolator.EASE_BOTH).build(),
-            JFXKeyValue.builder()
-                .setTarget(animatedPromptTextFill)
-                .setEndValueSupplier(()->((IFXTextInputControl) getSkinnable()).getFocusColor())
-                .setInterpolator(Interpolator.EASE_BOTH)
-                .setAnimateCondition(()->getSkinnable().isFocused()).build(),
-            JFXKeyValue.builder()
-                .setTargetSupplier(()->promptText == null ? null : promptText.translateYProperty())
-                .setEndValueSupplier(() -> -textPane.getHeight())
-                .setInterpolator(Interpolator.EASE_BOTH).build(),
-            JFXKeyValue.builder()
-                .setTarget(promptTextScale.xProperty())
-                .setEndValue(0.85)
-                .setInterpolator(Interpolator.EASE_BOTH).build(),
-            JFXKeyValue.builder()
-                .setTarget(promptTextScale.yProperty())
-                .setEndValue(0.85)
-                .setInterpolator(Interpolator.EASE_BOTH).build())
+    private Node left;
+    private StackPane leftPane;
+    private Node right;
+    private StackPane rightPane;
+
+    private T field;
+
+    JFXAnimationTimer focusTimer = new JFXAnimationTimer(
+            new JFXKeyFrame(Duration.millis(1),
+                    JFXKeyValue.builder()
+                            .setTarget(focusedLine.opacityProperty())
+                            .setEndValue(1)
+                            .setInterpolator(Interpolator.EASE_BOTH)
+                            .setAnimateCondition(()->getSkinnable().isFocused()).build()),
+
+            new JFXKeyFrame(Duration.millis(160),
+                    JFXKeyValue.builder()
+                            .setTarget(scale.xProperty())
+                            .setEndValue(1)
+                            .setInterpolator(Interpolator.EASE_BOTH).build(),
+                    JFXKeyValue.builder()
+                            .setTarget(animatedPromptTextFill)
+                            .setEndValueSupplier(()->((IFXTextInputControl) getSkinnable()).getFocusColor())
+                            .setInterpolator(Interpolator.EASE_BOTH)
+                            .setAnimateCondition(()->getSkinnable().isFocused()).build(),
+                    JFXKeyValue.builder()
+                            .setTargetSupplier(()->promptText == null ? null : promptText.translateYProperty())
+                            .setEndValueSupplier(() -> -textPane.getHeight())
+                            .setInterpolator(Interpolator.EASE_BOTH).build(),
+                    JFXKeyValue.builder()
+                            .setTarget(promptTextScale.xProperty())
+                            .setEndValue(0.85)
+                            .setInterpolator(Interpolator.EASE_BOTH).build(),
+                    JFXKeyValue.builder()
+                            .setTarget(promptTextScale.yProperty())
+                            .setEndValue(0.85)
+                            .setInterpolator(Interpolator.EASE_BOTH).build())
     );
 
     JFXAnimationTimer unfocusTimer = new JFXAnimationTimer(
-        new JFXKeyFrame(Duration.millis(160),
-            JFXKeyValue.builder()
-                .setTargetSupplier(()->promptText == null ? null : promptText.translateYProperty())
-                .setEndValue(0)
-                .setInterpolator(Interpolator.EASE_BOTH).build(),
-            JFXKeyValue.builder()
-                .setTarget(promptTextScale.xProperty())
-                .setEndValue(1)
-                .setInterpolator(Interpolator.EASE_BOTH).build(),
-            JFXKeyValue.builder()
-                .setTarget(promptTextScale.yProperty())
-                .setEndValue(1)
-                .setInterpolator(Interpolator.EASE_BOTH).build())
+            new JFXKeyFrame(Duration.millis(160),
+                    JFXKeyValue.builder()
+                            .setTargetSupplier(()->promptText == null ? null : promptText.translateYProperty())
+                            .setEndValue(0)
+                            .setInterpolator(Interpolator.EASE_BOTH).build(),
+                    JFXKeyValue.builder()
+                            .setTarget(promptTextScale.xProperty())
+                            .setEndValue(1)
+                            .setInterpolator(Interpolator.EASE_BOTH).build(),
+                    JFXKeyValue.builder()
+                            .setTarget(promptTextScale.yProperty())
+                            .setEndValue(1)
+                            .setInterpolator(Interpolator.EASE_BOTH).build())
     );
 
 
@@ -153,14 +166,14 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
         line.setTranslateY(1); // translate = prefHeight + init_translation
         line.setManaged(false);
         line.setBackground(new Background(new BackgroundFill(((IFXTextInputControl) getSkinnable()).getUnFocusColor(),
-            CornerRadii.EMPTY, Insets.EMPTY)));
+                CornerRadii.EMPTY, Insets.EMPTY)));
         if (getSkinnable().isDisabled()) {
             line.setBorder(new Border(new BorderStroke(((IFXTextInputControl) getSkinnable()).getUnFocusColor(),
-                BorderStrokeStyle.DASHED,
-                CornerRadii.EMPTY,
-                new BorderWidths(1))));
+                    BorderStrokeStyle.DASHED,
+                    CornerRadii.EMPTY,
+                    new BorderWidths(1))));
             line.setBackground(new Background(new BackgroundFill(Color.TRANSPARENT,
-                CornerRadii.EMPTY, Insets.EMPTY)));
+                    CornerRadii.EMPTY, Insets.EMPTY)));
         }
 
         // focused line
@@ -168,7 +181,7 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
         focusedLine.setTranslateY(0); // translate = prefHeight + init_translation(-1)
         focusedLine.setManaged(false);
         focusedLine.setBackground(new Background(new BackgroundFill(((IFXTextInputControl) getSkinnable()).getFocusColor(),
-            CornerRadii.EMPTY, Insets.EMPTY)));
+                CornerRadii.EMPTY, Insets.EMPTY)));
         focusedLine.setOpacity(0);
         focusedLine.getTransforms().add(scale);
 
@@ -205,11 +218,11 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
                                         errorClipScale.setY(1);
                                     });
                                     SequentialTransition transition = new SequentialTransition(scaleLess1,
-                                        errorShowTransition);
+                                            errorShowTransition);
                                     transition.play();
                                 } else {
                                     errorClipScale.setY(oldVal == null ? 0 :
-                                        errorContainer.getHeight() / errorContainerHeight);
+                                            errorContainer.getHeight() / errorContainerHeight);
                                     updateErrorContainerSize(w, errorContainerHeight);
                                     // update animation frames
                                     scale1.getKeyFrames().setAll(createScaleToOneFrames());
@@ -232,7 +245,7 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
                         if(errorLabel.isWrapText()){
                             // animate scale only
                             scaleLess1.getKeyFrames().setAll(new KeyFrame(Duration.millis(100),
-                                new KeyValue(errorClipScale.yProperty(), 0, Interpolator.EASE_BOTH)));
+                                    new KeyValue(errorClipScale.yProperty(), 0, Interpolator.EASE_BOTH)));
                             scaleLess1.setOnFinished(event -> {
                                 hideError();
                                 errorClipScale.setY(0);
@@ -289,12 +302,12 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
 
         field.disabledProperty().addListener(observable -> {
             line.setBorder(field.isDisabled() ? new Border(new BorderStroke(((IFXTextInputControl) getSkinnable()).getUnFocusColor(),
-                BorderStrokeStyle.DASHED,
-                CornerRadii.EMPTY,
-                new BorderWidths(line.getHeight()))) : Border.EMPTY);
+                    BorderStrokeStyle.DASHED,
+                    CornerRadii.EMPTY,
+                    new BorderWidths(line.getHeight()))) : Border.EMPTY);
             line.setBackground(new Background(new BackgroundFill(field.isDisabled() ? Color.TRANSPARENT : ((IFXTextInputControl) getSkinnable())
-                .getUnFocusColor(),
-                CornerRadii.EMPTY, Insets.EMPTY)));
+                    .getUnFocusColor(),
+                    CornerRadii.EMPTY, Insets.EMPTY)));
         });
 
         promptTextFill.addListener(observable -> {
@@ -302,8 +315,47 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
             animatedPromptTextFill.set(promptTextFill.get());
         });
 
+        this.field = field;
+        updateChildren();
+        registerChangeListener(leftProperty(), "LEFT_NODE"); //$NON-NLS-1$
+        registerChangeListener(rightProperty(), "RIGHT_NODE"); //$NON-NLS-1$
+        registerChangeListener(field.focusedProperty(), "FOCUSED"); //$NON-NLS-1$
+
         registerChangeListener(field.disableAnimationProperty(), "DISABLE_ANIMATION");
         registerChangeListener(field.labelFloatProperty(), "LABEL_FLOAT");
+    }
+
+    private void updateChildren() {
+        Node newLeft = leftProperty().get();
+        if (newLeft != null) {
+            getChildren().remove(leftPane);
+            leftPane = new StackPane(newLeft);
+            leftPane.setAlignment(Pos.CENTER_LEFT);
+            leftPane.getStyleClass().add("left-pane"); //$NON-NLS-1$
+            getChildren().add(leftPane);
+            left = newLeft;
+        }
+
+        Node newRight = rightProperty().get();
+        if (newRight != null) {
+            getChildren().remove(rightPane);
+            rightPane = new StackPane(newRight);
+            rightPane.setAlignment(Pos.CENTER_RIGHT);
+            rightPane.getStyleClass().add("right-pane"); //$NON-NLS-1$
+            getChildren().add(rightPane);
+            right = newRight;
+        }
+
+        field.pseudoClassStateChanged(HAS_LEFT_NODE, left != null);
+        field.pseudoClassStateChanged(HAS_RIGHT_NODE, right != null);
+        field.pseudoClassStateChanged(HAS_NO_SIDE_NODE, left == null && right == null);
+    }
+
+    public ObjectProperty<Node> leftProperty()  {
+        return null;
+    }
+    public ObjectProperty<Node> rightProperty() {
+        return null;
     }
 
     @Override
@@ -323,15 +375,36 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
         }else if ("DISABLE_ANIMATION".equals(propertyReference)) {
             // remove error clip if animation is disabled
             errorContainer.setClip(((IFXTextInputControl) getSkinnable()).isDisableAnimation() ?
-                null : errorContainerClip);
+                    null : errorContainerClip);
         } else {
             super.handleControlPropertyChanged(propertyReference);
+            if (propertyReference.equals("LEFT_NODE") || propertyReference.equals("RIGHT_NODE")) { //$NON-NLS-1$ //$NON-NLS-2$
+                updateChildren();
+            }
         }
     }
 
     @Override
     protected void layoutChildren(final double x, final double y, final double w, final double h) {
-        super.layoutChildren(x, y, w, h);
+        final double fullHeight = h + snappedTopInset() + snappedBottomInset();
+
+        final double leftWidth = leftPane == null ? 0.0 : snapSize(leftPane.prefWidth(fullHeight));
+        final double rightWidth = rightPane == null ? 0.0 : snapSize(rightPane.prefWidth(fullHeight));
+
+        final double textFieldStartX = snapPosition(x) + snapSize(leftWidth);
+        final double textFieldWidth = w - snapSize(leftWidth) - snapSize(rightWidth);
+
+        super.layoutChildren(textFieldStartX, 0, textFieldWidth, h);
+
+        if (leftPane != null) {
+            final double leftStartX = 0;
+            leftPane.resizeRelocate(leftStartX, 0, leftWidth, fullHeight);
+        }
+
+        if (rightPane != null) {
+            final double rightStartX = rightPane == null ? 0.0 : w - rightWidth + snappedLeftInset();
+            rightPane.resizeRelocate(rightStartX, 0, rightWidth, fullHeight);
+        }
 
         // change control properties if and only if animations are stopped
         if (!focusTimer.isRunning() && !unfocusTimer.isRunning()) {
@@ -358,7 +431,7 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
                 errorClipScale.setY(1);
             }
             // to position the prompt node properly
-            super.layoutChildren(x, y, w, h);
+            super.layoutChildren(textFieldStartX, 0, textFieldWidth, h);
 
             // focus
             if (getSkinnable().isFocused()) {
@@ -378,10 +451,21 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
         scale.setPivotX(w / 2);
     }
 
+    @Override
+    public HitInfo getIndex(double x, double y) {
+        /**
+         * This resolves https://bitbucket.org/controlsfx/controlsfx/issue/476
+         * when we have a left Node and the click point is badly returned
+         * because we weren't considering the shift induced by the leftPane.
+         */
+        final double leftWidth = leftPane == null ? 0.0 : snapSize(leftPane.prefWidth(getSkinnable().getHeight()));
+        return super.getIndex(x - leftWidth, y);
+    }
+
     private boolean isErrorVisible() {
         return errorContainer.isVisible()
-           && errorShowTransition.getStatus().equals(Animation.Status.STOPPED)
-           && errorHideTransition.getStatus().equals(Animation.Status.STOPPED);
+                && errorShowTransition.getStatus().equals(Animation.Status.STOPPED)
+                && errorHideTransition.getStatus().equals(Animation.Status.STOPPED);
     }
 
     private double computeErrorWidth(double w) {
@@ -390,8 +474,8 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
 
     private double computeErrorHeight(double errorContainerWidth) {
         return errorLabel.prefHeight(errorContainerWidth)
-               + errorContainer.snappedBottomInset()
-               + errorContainer.snappedTopInset();
+                + errorContainer.snappedBottomInset()
+                + errorContainer.snappedTopInset();
     }
 
     /**
@@ -412,9 +496,9 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
      */
     private KeyFrame createSmallerScaleFrame(double errorContainerHeight) {
         return new KeyFrame(Duration.millis(100),
-            new KeyValue(errorClipScale.yProperty(),
-                errorContainerHeight / errorContainer.getHeight(),
-                Interpolator.EASE_BOTH));
+                new KeyValue(errorClipScale.yProperty(),
+                        errorContainerHeight / errorContainer.getHeight(),
+                        Interpolator.EASE_BOTH));
     }
 
     /**
@@ -423,7 +507,7 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
      */
     private KeyFrame createScaleToOneFrames() {
         return new KeyFrame(Duration.millis(100), new
-            KeyValue(errorClipScale.yProperty(), 1, Interpolator.EASE_BOTH));
+                KeyValue(errorClipScale.yProperty(), 1, Interpolator.EASE_BOTH));
     }
 
     private void createFloatingLabel() {
@@ -519,7 +603,7 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
         String promptTxt = getSkinnable().getPromptText();
         boolean isLabelFloat = ((IFXTextInputControl) getSkinnable()).isLabelFloat();
         return (txt == null || txt.isEmpty()) && promptTxt != null
-               && !promptTxt.isEmpty() && (!promptTextFill.get().equals(Color.TRANSPARENT) || isLabelFloat);
+                && !promptTxt.isEmpty() && (!promptTextFill.get().equals(Color.TRANSPARENT) || isLabelFloat);
     }
 
     private void showError(ValidatorBase validator) {
@@ -543,6 +627,24 @@ public class JFXTextFieldSkin<T extends TextField & IFXTextInputControl> extends
         // reset the height of the text field
         // hide error container
         errorContainer.setVisible(false);
+    }
+
+    @Override
+    protected double computePrefWidth(double h, double topInset, double rightInset, double bottomInset, double leftInset) {
+        final double pw = super.computePrefWidth(h, topInset, rightInset, bottomInset, leftInset);
+        final double leftWidth = leftPane == null ? 0.0 : snapSize(leftPane.prefWidth(h));
+        final double rightWidth = rightPane == null ? 0.0 : snapSize(rightPane.prefWidth(h));
+
+        return pw + leftWidth + rightWidth;
+    }
+
+    @Override
+    protected double computePrefHeight(double w, double topInset, double rightInset, double bottomInset, double leftInset) {
+        final double ph = super.computePrefHeight(w, topInset, rightInset, bottomInset, leftInset);
+        final double leftHeight = leftPane == null ? 0.0 : snapSize(leftPane.prefHeight(-1));
+        final double rightHeight = rightPane == null ? 0.0 : snapSize(rightPane.prefHeight(-1));
+
+        return Math.max(ph, Math.max(leftHeight, rightHeight));
     }
 
 }
